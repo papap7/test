@@ -883,26 +883,6 @@ void displayMenu(Library &libraryInstance)
         libraryInstance.addBook();
         displayMenu(libraryInstance);
         return;
-    case 2:
-        libraryInstance.editBook();
-        displayMenu(libraryInstance);
-        return;
-    case 3:
-        libraryInstance.searchBook();
-        displayMenu(libraryInstance);
-        return;
-    case 4:
-        libraryInstance.deleteBook();
-        displayMenu(libraryInstance);
-        return;
-    case 5:
-        libraryInstance.viewBookByCategory();
-        displayMenu(libraryInstance);
-        return;
-    case 6:
-        libraryInstance.viewAllBooks();
-        displayMenu(libraryInstance);
-        return;
     case 7:
         cout << "Exiting the program.\n";
         exit(0);
@@ -919,6 +899,8 @@ int main()
     Library *libraryInstance = new Library();
     displayMenu(*libraryInstance);
     delete libraryInstance;
+
+    cout << "prgram terminated";
 
     return 0;
 }

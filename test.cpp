@@ -1,906 +1,443 @@
-// STL and vector are not used in this code.
 #include <iostream>
 #include <string>
-#include <iomanip>
 #include <limits>
+#include <cctype>
+#include <regex>
+#include <unordered_map>
 
 using namespace std;
 
-bool isValidChoice(const string &input)
-{
-    return input.length() == 1 && input[0] >= '1' && input[0] <= '7';
-}
-
-bool isValidIsbn(const string &input)
-{
-    if (input.length() != 10 && input.length() != 13)
-    {
-        return false;
-    }
-    for (char c : input)
-    {
-        if (!isdigit(c) && c != '-')
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool isValidTitle(const string &input)
-{
-    if (input.empty())
-    {
-        return false;
-    }
-
-    bool hasNonSpace = false;
-    for (char c : input)
-    {
-        if (!isspace(c))
-        {
-            hasNonSpace = true;
-        }
-    }
-    return hasNonSpace;
-}
-
-bool isValidAuthor(const string &input)
-{
-    if (input.empty())
-    {
-        return false;
-    }
-    bool hasNonSpace = false;
-
-    for (char c : input)
-    {
-        if (!(isalpha(c) || c == ' ' || c == '-' || c == '\'' || c == '.'))
-        {
-            return false;
-        }
-        if (!isspace(c))
-        {
-            hasNonSpace = true;
-        }
-    }
-    return hasNonSpace;
-}
-
-bool isValidEdition(const string &input)
-{
-    if (input.empty())
-    {
-        return false;
-    }
-
-    bool hasNonSpace = false;
-    for (char c : input)
-    {
-        if (!(isalnum(c) || c == ' '))
-        {
-            return false;
-        }
-
-        if (!isspace(c))
-        {
-            hasNonSpace = true;
-        }
-    }
-    return hasNonSpace;
-}
-
-bool isValidPublication(const string &input)
-{
-    if (input.length() != 4)
-    {
-        return false;
-    }
-    for (char c : input)
-    {
-        if (!isdigit(c))
-        {
-            return false;
-        }
-    }
-    int year = stoi(input);
-    if (year < 1000 || year > 2025)
-    {
-        return false;
-    }
-
-    return true;
-}
-
-bool choiceConfirmation()
-{
-    for (;;)
-    {
-        char confirmChoice;
-        cin >> confirmChoice;
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-
-        confirmChoice = tolower(confirmChoice);
-
-        if (confirmChoice == 'y')
-        {
-            return true;
-        }
-        else if (confirmChoice == 'n')
-        {
-            return false;
-        }
-        else
-        {
-            cout << "Invalid input. Please enter [Y] Yes or [N] No: ";
-            cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
-        }
-    }
-}
-
-string toUpper(const string &input)
-{
-    string result = input;
-    for (char &c : result)
-    {
-        if (isalpha(c))
-            c = toupper(c);
-    }
-    return result;
-}
-
-class LibrarySystem
-{
-public:
-    virtual void addBook() = 0;
-    virtual void editBook() = 0;
-    virtual void searchBook() = 0;
-    virtual void deleteBook() = 0;
-    virtual void viewBookByCategory() = 0;
-    virtual void viewAllBooks() = 0;
-    virtual ~LibrarySystem() {};
-};
-
-class Book
+class Employee
 {
 private:
     string id;
-    string isbn;
-    string title;
-    string author;
-    string edition;
-    string publication;
-    string category;
+    string name;
+    double salary;
 
 public:
-    Book(string id, string isbn, string title, string author, string edition, string publication, string category)
+    Employee(string empId, string empName, double empSalary) : id(empId), name(empName), salary(empSalary) {}
+
+    virtual void calculateSalary() = 0;
+
+    void setId(const string &empId)
     {
-        this->id = id;
-        this->isbn = isbn;
-        this->title = title;
-        this->author = author;
-        this->edition = edition;
-        this->publication = publication;
-        this->category = category;
+        id = empId;
+    }
+    void setName(const string &empName)
+    {
+        name = empName;
+    }
+    void setSalary(double empSalary)
+    {
+        salary = empSalary;
     }
 
     string getId() const
     {
         return id;
     }
-    string getIsbn() const
+    string getName() const
     {
-        return isbn;
+        return name;
     }
-    string getTitle() const
+    double getSalary() const
     {
-        return title;
-    }
-    string getAuthor() const
-    {
-        return author;
-    }
-    string getEdition()
-    {
-        return edition;
-    }
-    string getPublication() const
-    {
-        return publication;
-    }
-    string getCategory() const
-    {
-        return category;
-    }
-
-    void setIsbn(const string &newIsbn)
-    {
-        isbn = newIsbn;
-    }
-    void setTitle(const string &newTitle)
-    {
-        title = newTitle;
-    }
-    void setAuthor(const string &newAuthor)
-    {
-        author = newAuthor;
-    }
-    void setEdition(const string &newEdition)
-    {
-        edition = newEdition;
-    }
-    void setPublication(const string &newPublication)
-    {
-        publication = newPublication;
-    }
-    void setCategory(const string &newCategory)
-    {
-        category = newCategory;
+        return salary;
     }
 };
 
-bool isValidIdFormat(const string &id)
+unordered_map<string, unique_ptr<Employee>> employees;
+
+bool isValidNumber(const string &input)
 {
-    if (id.length() != 3)
+    if (input.empty())
         return false;
-    for (char c : id)
-    {
-        if (!isalnum(c))
-            return false;
-    }
-    return true;
+    regex pattern("^(?!0(\\.0{1,2})?$)[0-9]+(\\.[0-9]{1,2})?$");
+    return regex_match(input, pattern);
 }
 
-bool idExists(const string &id, Book *books[], int size)
+bool isValidString(const string &input)
 {
-    for (int i = 0; i < size; i++)
+    if (input.empty())
+        return false;
+    regex pattern("^[A-Za-z ]+$");
+    return regex_match(input, pattern);
+}
+
+bool isValidId(const string &input)
+{
+    if (input.length() != 3)
+        return false;
+    if ((isdigit(input[0]) && isdigit(input[1]) && isdigit(input[2])) ||
+        (isupper(input[0]) && isupper(input[1]) && isupper(input[2])))
     {
-        if (books[i] != nullptr && books[i]->getId() == id)
-        {
-            return true;
-        }
+        return true;
     }
     return false;
 }
 
-string getValidId(Book *books[], int size, bool mustExist)
+class FullTimeEmployee : public Employee
 {
-    string tempId, id;
-
-    for (;;)
-    {
-        cout << "Enter Book ID [XXX]: ";
-        cin.clear();
-        getline(cin, tempId);
-        id = toUpper(tempId);
-
-        if (!isValidIdFormat(id))
-        {
-            cout << "Invalid ID. Please enter a valid 3-length alphanumeric ID [XXX].\n";
-            continue;
-        }
-
-        bool found = idExists(id, books, size);
-        if (mustExist && !found)
-        {
-            cout << "Book with ID " << id << " not found.\n";
-            cout << "Do you want to continue searching? [(Y) Yes | (N) No] ";
-            if (!choiceConfirmation())
-                return "";
-        }
-        else if (!mustExist && found)
-        {
-            cout << "ID already exists. Please enter a different ID.\n";
-        }
-        else
-        {
-            return id;
-        }
-    }
-}
-
-bool isValidCategory(const string &input)
-{
-    return input == "Fiction" || input == "fiction" || input == "FICTION" || input == "Non-Fiction" || input == "non-fiction" || input == "NON-FICTION";
-}
-
-string getValidCategoryInput(bool allowEmpty = false)
-{
-    string category;
-    for (;;)
-    {
-        cout << "Input Category [FICTION | NON-FICTION]: ";
-        cin.clear();
-        getline(cin, category);
-
-        if (allowEmpty && category.empty())
-        {
-            return "";
-        }
-
-        if (!isValidCategory(category))
-        {
-            cout << "Category not found! Please enter either FICTION or NON-FICTION.\n";
-            continue;
-        }
-
-        return toUpper(category);
-    }
-}
-
-void displayBookDetails(Book *book)
-{
-    cout << "\nDetails of the book ID [" << book->getId() << "]:\n"
-         << "ISBN: " << book->getIsbn() << "\n"
-         << "Title: " << book->getTitle() << "\n"
-         << "Author: " << book->getAuthor() << "\n"
-         << "Edition: " << book->getEdition() << "\n"
-         << "Publication Year: " << book->getPublication() << "\n"
-         << "Category: " << book->getCategory() << "\n";
-}
-
-bool checkBooksAvailability(Book *books[], int size)
-{
-    bool hasBooks = false;
-    for (int i = 0; i < size; i++)
-    {
-        if (books[i] != nullptr)
-        {
-            hasBooks = true;
-            break;
-        }
-    }
-
-    if (!hasBooks)
-    {
-        cout << "No books available.\nPress Enter to continue...";
-        cin.get();
-    }
-
-    return hasBooks;
-}
-
-bool isLibraryFull(Book *books[], int size)
-{
-    for (int i = 0; i < size; i++)
-    {
-        if (books[i] == nullptr)
-            return false;
-    }
-    return true;
-}
-
-class Library : public LibrarySystem
-{
-private:
-    static const int size = 10;
-    Book *books[size] = {nullptr};
-
 public:
-    ~Library()
-    {
-        for (int i = 0; i < size; i++)
-        {
-            delete books[i];
-            books[i] = nullptr;
-        }
-    }
+    FullTimeEmployee(string id, string name, double salary) : Employee(id, name, salary) {}
 
-    void addBook() override
+    void calculateSalary() override
     {
+
+        string tempId, tempName;
+        double tempSalary;
+
+        cout << "\n------ Full-time Employee ------\n";
         for (;;)
         {
-            cout << "\n- - - - - - - - - - Add Book - - - - - - - - - - \n";
-            if (isLibraryFull(books, size))
+            cout << "Input a 3-digit ID (000 | ABC): ";
+            getline(cin, tempId);
+            if (!isValidId(tempId))
             {
-                cout << "Library is full. Cannot add more books.\n";
-                cout << "Press Enter to continue...";
-                cin.get();
-                return;
-            }
-            cout << "Adding Book to Library...\n";
-            string tempId, id, isbn, title, author, edition, publication, category;
-
-            category = getValidCategoryInput(false);
-            id = getValidId(books, size, false);
-
-            cout << "ID is valid! Book ID: " << id << "\n";
-
-            for (;;)
-            {
-                cout << "Enter ISBN [10 | 13 characters only]: ";
-                getline(cin, isbn);
-
-                if (!isValidIsbn(isbn))
-                {
-                    cout << "Invalid ISBN. Please enter a valid ISBN.\n";
-                    continue;
-                }
-
-                bool exists = false;
-                for (int i = 0; i < size; i++)
-                {
-                    if (books[i] != nullptr && books[i]->getIsbn() == isbn)
-                    {
-                        cout << "ISBN already exists. Please enter a different ISBN.\n";
-                        exists = true;
-                        break;
-                    }
-                }
-
-                if (!exists)
-                {
-                    break;
-                }
-            }
-
-            cout << "ISBN is valid! Book ISBN: " << isbn << "\n";
-            for (;;)
-            {
-                cout << "Enter Title: ";
-                getline(cin, title);
-                if (isValidTitle(title) == false)
-                {
-                    cout << "Invalid title. Please enter a valid title.\n";
-                    continue;
-                }
-                break;
-            }
-
-            for (;;)
-            {
-                cout << "Enter Author: ";
-                getline(cin, author);
-                if (isValidAuthor(author) == false)
-                {
-                    cout << "Invalid author. Please enter a valid author.\n";
-                    continue;
-                }
-                break;
-            }
-
-            for (;;)
-            {
-                cout << "Enter Edition [1st | 1st Edition | First Edition]: ";
-                getline(cin, edition);
-                if (isValidEdition(edition) == false)
-                {
-                    cout << "Invalid edition. Please enter a valid edition.\n";
-                    continue;
-                }
-                break;
-            }
-
-            for (;;)
-            {
-                cout << "Enter Publication Year [1000 - 2025]: ";
-                getline(cin, publication);
-                if (isValidPublication(publication) == false)
-                {
-                    cout << "Invalid publication year. Please enter a valid publication year.\n";
-                    continue;
-                }
-                break;
-            }
-
-            cout << "\n- - - - - - - Book Details - - - - - - -\n";
-            cout << "ID: " << id << "\n"
-                 << "ISBN: " << isbn << "\n"
-                 << "Title: " << title << "\n"
-                 << "Author: " << author << "\n"
-                 << "Edition: " << edition << "\n"
-                 << "Publication Year: " << publication << "\n"
-                 << "Category: " << category << "\n";
-            cout << endl;
-
-            cout << "Confirm this book details? [(Y) Yes | (N) No] ";
-            if (choiceConfirmation() == false)
-            {
+                cout << "Invalid ID. Please enter a valid 3-digit number or uppercase letters.\n";
                 continue;
             }
-
-            bool bookAdded = false;
-            for (int i = 0; i < size; i++)
+            if (employees.find(tempId) != employees.end())
             {
-                if (books[i] == nullptr)
-                {
-                    books[i] = new Book(id, isbn, title, author, edition, publication, category);
-                    cout << "Book added successfully.\n";
-                    bookAdded = true;
-                    break;
-                }
+                cout << "ID already exists. Please enter a different ID.\n";
+                continue;
             }
-            if (!bookAdded)
-            {
-                cout << "Library is full. Cannot add more books.\n";
-            }
-            cout << "Press Enter to continue...";
-            cin.get();
-            return;
+            break;
         }
-    }
-
-    void editBook() override
-    {
-        cout << "\n- - - - - - - - - - Edit Book - - - - - - - - - -\n";
-
-        if (!checkBooksAvailability(books, size))
-        {
-            return;
-        }
-
-        string id = getValidId(books, size, true);
-        if (id.empty())
-        {
-            cout << "Edit operation cancelled.\n";
-            return;
-        }
-
-        int index = -1;
-        for (int i = 0; i < size; i++)
-        {
-            if (books[i] != nullptr && books[i]->getId() == id)
-            {
-                index = i;
-                break;
-            }
-        }
-
-        if (index == -1)
-        {
-            cout << "Book with ID " << id << " not found.\n";
-            return;
-        }
-
-        Book *book = books[index];
+        setId(tempId);
 
         for (;;)
         {
-            string isbn, title, author, edition, publication, category;
-
-            displayBookDetails(book);
-
-            cout << "\nEnter new details (press Enter to keep current values):\n";
-
-            category = getValidCategoryInput(true);
-
-            if (category.empty())
+            cout << "Input your name (letters only): ";
+            getline(cin, tempName);
+            if (isValidString(tempName))
             {
-                category = book->getCategory();
-            }
-
-            for (;;)
-            {
-                cout << "ISBN: ";
-                getline(cin, isbn);
-                if (isbn.empty() || isValidIsbn(isbn))
-                    break;
-                cout << "Invalid ISBN. Try again.\n";
-            }
-            if (isbn.empty())
-                isbn = book->getIsbn();
-
-            for (;;)
-            {
-                cout << "Title: ";
-                getline(cin, title);
-                if (title.empty() || isValidTitle(title))
-                    break;
-                cout << "Invalid Title. Try again.\n";
-            }
-            if (title.empty())
-                title = book->getTitle();
-
-            for (;;)
-            {
-                cout << "Author: ";
-                getline(cin, author);
-                if (author.empty() || isValidAuthor(author))
-                    break;
-                cout << "Invalid Author. Try again.\n";
-            }
-            if (author.empty())
-                author = book->getAuthor();
-
-            for (;;)
-            {
-                cout << "Edition: ";
-                getline(cin, edition);
-                if (edition.empty() || isValidEdition(edition))
-                    break;
-                cout << "Invalid Edition. Try again.\n";
-            }
-            if (edition.empty())
-                edition = book->getEdition();
-
-            for (;;)
-            {
-                cout << "Publication Year: ";
-                getline(cin, publication);
-                if (publication.empty() || isValidPublication(publication))
-                    break;
-                cout << "Invalid Publication Year. Try again.\n";
-            }
-            if (publication.empty())
-                publication = book->getPublication();
-
-            cout << "\nUpdated Details for book ID [" << book->getId() << "]:\n"
-                 << "ISBN: " << isbn << "\n"
-                 << "Title: " << title << "\n"
-                 << "Author: " << author << "\n"
-                 << "Edition: " << edition << "\n"
-                 << "Publication Year: " << publication << "\n"
-                 << "Category: " << category << "\n";
-
-            cout << "Confirm changes? [(Y) Yes | (N) No] ";
-            if (choiceConfirmation())
-            {
-                book->setIsbn(isbn);
-                book->setTitle(title);
-                book->setAuthor(author);
-                book->setEdition(edition);
-                book->setPublication(publication);
-                book->setCategory(category);
-
-                cout << "Book details updated successfully.\n";
-                cout << "Press Enter to continue...";
-                cin.get();
-                break;
-            }
-            else
-            {
-                cout << "Edit cancelled. Retry updating details.\n";
-            }
-        }
-    }
-
-    void searchBook() override
-    {
-        cout << "\n- - - - - - - - - - Search Book - - - - - - - - - -\n";
-
-        if (!checkBooksAvailability(books, size))
-        {
-            return;
-        }
-
-        string id = getValidId(books, size, true);
-
-        if (id.empty())
-        {
-            cout << "Search cancelled.\n";
-            return;
-        }
-
-        int index = -1;
-        for (int i = 0; i < size; i++)
-        {
-            if (books[i] != nullptr && books[i]->getId() == id)
-            {
-                index = i;
+                setName(tempName);
                 break;
             }
         }
 
-        if (index == -1)
-        {
-            cout << "Book with ID " << id << " not found.\n";
-        }
-        else
-        {
-            Book *book = books[index];
-            displayBookDetails(book);
-        }
-
-        cout << "Press Enter to continue...";
-        cin.clear();
-        cin.get();
-    }
-
-    void deleteBook() override
-    {
         for (;;)
         {
-            cout << "\n- - - - - - - - - - Delete Book - - - - - - - - - - \n";
-
-            if (!checkBooksAvailability(books, size))
+            cout << "Input salary: $";
+            string tempSalaryStr;
+            getline(cin, tempSalaryStr);
+            if (!isValidNumber(tempSalaryStr))
             {
-                return;
+                cout << "Invalid salary. Please enter a valid number.\n";
+                continue;
             }
-
-            string id = getValidId(books, size, true);
-
-            if (id.empty())
-            {
-                cout << "Deletion cancelled.\n";
-                return;
-            }
-
-            bool bookFound = false;
-            for (int i = 0; i < size; i++)
-            {
-                if (books[i] != nullptr && books[i]->getId() == id)
-                {
-                    bookFound = true;
-                    cout << "Book with ID " << id << " found.\n";
-                    Book *book = books[i];
-
-                    displayBookDetails(book);
-
-                    cout << "Are you sure you want to delete this book? [(Y) Yes | (N) No]: ";
-                    if (choiceConfirmation())
-                    {
-                        delete books[i];
-                        books[i] = nullptr;
-                        cout << "Book deleted successfully.\n";
-                    }
-                    else
-                    {
-                        cout << "Deletion cancelled.\n";
-                    }
-
-                    cout << "Press Enter to continue...";
-                    cin.get();
-                    break;
-                }
-            }
-
-            if (!bookFound)
-            {
-                cout << "Book with ID " << id << " not found.\n";
-            }
-
-            cout << "Do you want to search for another book? [(Y) Yes | (N) No]: ";
-            if (!choiceConfirmation())
-            {
-                break;
-            }
+            tempSalary = stod(tempSalaryStr);
+            break;
         }
-        cout << "Press Enter to continue...";
-        cin.get();
-    }
-
-    void viewBookByCategory() override
-    {
-        cout << "\n- - - - - - - - - - View Books by Category - - - - - - - - - -\n";
-
-        if (!checkBooksAvailability(books, size))
-        {
-            return;
-        }
-
-        string category = getValidCategoryInput(false);
-
-        cout << "\nShowing books in category: " << category << "\n";
-        cout << left
-             << setw(10) << "ID"
-             << setw(20) << "ISBN"
-             << setw(25) << "TITLE"
-             << setw(25) << "AUTHOR"
-             << setw(15) << "EDITION"
-             << setw(15) << "PUBLICATION"
-             << "\n";
-        cout << string(110, '-') << "\n";
-
-        bool found = false;
-        for (int i = 0; i < size; i++)
-        {
-            if (books[i] != nullptr && books[i]->getCategory() == category)
-            {
-                cout << left
-                     << setw(10) << books[i]->getId()
-                     << setw(20) << books[i]->getIsbn()
-                     << setw(25) << books[i]->getTitle()
-                     << setw(25) << books[i]->getAuthor()
-                     << setw(15) << books[i]->getEdition()
-                     << setw(15) << books[i]->getPublication()
-                     << "\n";
-                found = true;
-            }
-        }
-
-        if (!found)
-        {
-            cout << "No books found in this category.\n";
-        }
-
-        cout << "Press Enter to continue...";
-        cin.get();
-    }
-
-    void viewAllBooks() override
-    {
-        cout << "\n"
-             << string(59, ' ') << "List of Books" << string(59, ' ') << "\n"
-             << string(130, '-') << "\n"
-             << left
-             << setw(10) << "ID"
-             << setw(20) << "ISBN"
-             << setw(25) << "TITLE"
-             << setw(25) << "AUTHOR"
-             << setw(15) << "EDITION"
-             << setw(15) << "PUBLICATION"
-             << setw(15) << "CATEGORY"
-             << "\n";
-        cout << string(130, '-') << "\n";
-
-        bool found = false;
-        for (int i = 0; i < size; i++)
-        {
-            if (books[i] != nullptr)
-            {
-                cout << left
-                     << setw(10) << books[i]->getId()
-                     << setw(20) << books[i]->getIsbn()
-                     << setw(25) << books[i]->getTitle()
-                     << setw(25) << books[i]->getAuthor()
-                     << setw(15) << books[i]->getEdition()
-                     << setw(15) << books[i]->getPublication()
-                     << setw(15) << books[i]->getCategory()
-                     << "\n";
-                found = true;
-            }
-        }
-        if (!found)
-        {
-            cout << "No books available.\n";
-        }
-        cout << "Press Enter to continue to menu...";
-        cin.get();
+        setSalary(tempSalary);
+        cout << "Total Salary: $" << getSalary() << "\n";
     }
 };
 
-void displayMenu(Library &libraryInstance)
+class PartTimeEmployee : public Employee
 {
-    cout << "\nLibrary Management System\n"
-         << "- - - - - - - - - - - - - - - - - - - - - -\n"
-         << "1. Add Book\n"
-         << "2. Edit Book\n"
-         << "3. Search Book\n"
-         << "4. Delete Book\n"
-         << "5. View Book by Category\n"
-         << "6. View All Books\n"
-         << "7. Exit\n"
-         << endl;
-    int numChoice;
+private:
+    double hourlyWage;
+    int workHours;
+
+public:
+    PartTimeEmployee(string id, string name, double salary, double hourlyWage, int workHours) : Employee(id, name, salary), hourlyWage(hourlyWage), workHours(workHours) {}
+
+    void setHourlyWage(double hourlyWage)
+    {
+        this->hourlyWage = hourlyWage;
+    }
+    void setWorkHours(int workHours)
+    {
+        this->workHours = workHours;
+    }
+
+    double getHourlyWage() const
+    {
+        return hourlyWage;
+    }
+    int getWorkHours() const
+    {
+        return workHours;
+    }
+
+    void calculateSalary() override
+    {
+
+        string tempId, tempName, tempHourlyWage, tempWorkHours;
+        cout << "\n------ Part-time Employee ------\n";
+        for (;;)
+        {
+            cout << "Input a 3-digit ID (000 | ABC): ";
+            getline(cin, tempId);
+            if (!isValidId(tempId))
+            {
+                cout << "Invalid ID. Please enter a valid 3-digit number or uppercase letters.\n";
+                continue;
+            }
+            if (employees.find(tempId) != employees.end())
+            {
+                cout << "ID already exists. Please enter a different ID.\n";
+                continue;
+            }
+            break;
+        }
+        setId(tempId);
+
+        for (;;)
+        {
+            cout << "Input your name (letters only): ";
+            getline(cin, tempName);
+            if (isValidString(tempName))
+            {
+                setName(tempName);
+                break;
+            }
+            cout << "Invalid name. Please enter letters only.\n";
+        }
+
+        for (;;)
+        {
+            cout << "Input Hourly Wage: $";
+            getline(cin, tempHourlyWage);
+            if (!isValidNumber(tempHourlyWage))
+            {
+                cout << "Invalid input. Please enter a valid hourly wage.\n";
+                continue;
+            }
+            setHourlyWage(stod(tempHourlyWage));
+            break;
+        }
+
+        for (;;)
+        {
+            cout << "Input number of hours worked: ";
+            getline(cin, tempWorkHours);
+            if (!isValidNumber(tempWorkHours))
+            {
+                cout << "Invalid input. Please enter a valid hours work.\n";
+                continue;
+            }
+            setWorkHours(stoi(tempWorkHours));
+            break;
+        }
+
+        setSalary(getHourlyWage() * getWorkHours());
+        cout << "Total Salary: $" << getSalary() << "\n";
+    }
+};
+
+class ContractEmployee : public Employee
+{
+private:
+    double contractPayment;
+    int numProject;
+
+public:
+    ContractEmployee(string id, string name, double salary, double contractPayment, int numProject) : Employee(id, name, salary), contractPayment(contractPayment), numProject(numProject) {}
+
+    void setContractPayment(double contractPayment)
+    {
+        this->contractPayment = contractPayment;
+    }
+    void setNumProject(int numProject)
+    {
+        this->numProject = numProject;
+    }
+
+    double getContractPayment() const
+    {
+        return contractPayment;
+    }
+    int getNumProject() const
+    {
+        return numProject;
+    }
+
+    void calculateSalary() override
+    {
+
+        string tempId, tempName, tempContractPayment, tempNumProject;
+
+        cout << "\n------ Contractual Employee ------\n";
+        for (;;)
+        {
+            cout << "Input a 3-digit ID (000 | ABC): ";
+            getline(cin, tempId);
+            if (!isValidId(tempId))
+            {
+                cout << "Invalid ID. Please enter a valid 3-digit number or uppercase letters.\n";
+                continue;
+            }
+            if (employees.find(tempId) != employees.end())
+            {
+                cout << "ID already exists. Please enter a different ID.\n";
+                continue;
+            }
+            break;
+        }
+        setId(tempId);
+
+        for (;;)
+        {
+            cout << "Input your name (letters only): ";
+            getline(cin, tempName);
+            if (isValidString(tempName))
+            {
+                setName(tempName);
+                break;
+            }
+            cout << "Invalid name. Please enter letters only.\n";
+        }
+
+        for (;;)
+        {
+            cout << "Input Contract Payment per Project: $";
+            getline(cin, tempContractPayment);
+            if (!isValidNumber(tempContractPayment))
+            {
+                cout << "Invalid input. Please enter a contract payment.\n";
+                continue;
+            }
+            setContractPayment(stod(tempContractPayment));
+            break;
+        }
+
+        for (;;)
+        {
+            cout << "Input number of project: ";
+            getline(cin, tempNumProject);
+            if (!isValidNumber(tempNumProject))
+            {
+                cout << "Invalid input. Please enter a valid number of project.\n";
+                continue;
+            }
+            setNumProject(stoi(tempNumProject));
+            break;
+        }
+
+        setSalary(getContractPayment() * getNumProject());
+        cout << "Total Salary: $" << getSalary() << "\n";
+    }
+};
+
+void displayPayrollReport()
+{
+    cout << "\n------ Employee Payroll Report ------\n";
+    if (employees.empty())
+    {
+        cout << "No employee data available.\n";
+        return;
+    }
+    for (const auto &pair : employees)
+    {
+        if (FullTimeEmployee *emp = dynamic_cast<FullTimeEmployee *>(pair.second.get()))
+        {
+            cout << "\nEmployee: " << emp->getName() << " (ID: " << emp->getId() << ")\n";
+            cout << "Fixed Monthly Salary: $" << emp->getSalary() << "\n";
+        }
+        else if (PartTimeEmployee *emp = dynamic_cast<PartTimeEmployee *>(pair.second.get()))
+        {
+            cout << "\nEmployee: " << emp->getName() << " (ID: " << emp->getId() << ")\n";
+            cout << "Hourly Wage: $" << emp->getHourlyWage() << "\n";
+            cout << "Hours Worked: " << emp->getWorkHours() << "\n";
+            cout << "Total Salary: $" << emp->getSalary() << "\n";
+        }
+        else if (ContractEmployee *emp = dynamic_cast<ContractEmployee *>(pair.second.get()))
+        {
+            cout << "\nEmployee: " << emp->getName() << " (ID: " << emp->getId() << ")\n";
+            cout << "Contract Payment per Project: $" << emp->getContractPayment() << "\n";
+            cout << "Projects Completed: " << emp->getNumProject() << "\n";
+            cout << "Total Salary: $" << emp->getSalary() << "\n";
+        }
+    }
+}
+
+void displayEmployeeTypeMenu(int numChoice);
+
+void displayMenu()
+{
+    cout << "\n- - - - - - - - - - - Menu - - - - - - - - - - -\n";
+    cout << "1. Full-time Employee\n2. Part-time Employee\n3. Contractual Employee\n4. Display Payroll Report\n5. Exit\n";
     for (;;)
     {
-        cout << "Input number of choice (1 - 7): ";
+        cout << "Input number of choice: ";
         string choice;
         getline(cin, choice);
-        if (isValidChoice(choice) == false)
+        if (!isValidNumber(choice))
         {
             cout << "Invalid input. Please enter a valid choice.\n";
             continue;
         }
-        numChoice = stoi(choice);
+        int numChoice = stoi(choice);
+        if (numChoice < 1 || numChoice > 5)
+        {
+            cout << "Invalid choice. Please enter a number between 1 and 5.\n";
+            continue;
+        }
+        displayEmployeeTypeMenu(numChoice);
         break;
     }
+}
 
+void displayEmployeeTypeMenu(int numChoice)
+{
     switch (numChoice)
     {
     case 1:
-        libraryInstance.addBook();
-        displayMenu(libraryInstance);
-        return;
-    case 7:
-        cout << "Exiting the program.\n";
-        exit(0);
+    {
+        FullTimeEmployee fTimeEmp("", "", 0);
+        fTimeEmp.calculateSalary();
+        employees.insert({fTimeEmp.getId(), make_unique<FullTimeEmployee>(fTimeEmp.getId(), fTimeEmp.getName(), fTimeEmp.getSalary())});
+        displayMenu();
         break;
-    default:
-        cout << "Invalid choice. Please enter a number between 1 and 6.\n";
-        displayMenu(libraryInstance);
+    }
+    case 2:
+    {
+        PartTimeEmployee pTimeEmp("", "", 0, 0, 0);
+        pTimeEmp.calculateSalary();
+        employees.insert({pTimeEmp.getId(), make_unique<PartTimeEmployee>(pTimeEmp.getId(), pTimeEmp.getName(), pTimeEmp.getSalary(), pTimeEmp.getHourlyWage(), pTimeEmp.getWorkHours())});
+        displayMenu();
+        break;
+    }
+    case 3:
+    {
+        ContractEmployee contractEmp("", "", 0, 0, 0);
+        contractEmp.calculateSalary();
+        employees.insert({contractEmp.getId(), make_unique<ContractEmployee>(contractEmp.getId(), contractEmp.getName(), contractEmp.getSalary(), contractEmp.getContractPayment(), contractEmp.getNumProject())});
+        displayMenu();
+        break;
+    }
+    case 4:
+    {
+        displayPayrollReport();
+        displayMenu();
+        break;
+    }
+    case 5:
+    {
         return;
+        exit(0);
+    }
+    default:
+    {
+        cout << "Invalid choice. Please enter a valid number.\n";
+        displayMenu();
+        break;
+    }
     }
 }
 
 int main()
 {
-    Library *libraryInstance = new Library();
-    displayMenu(*libraryInstance);
-    delete libraryInstance;
-
-    cout << "prgram terminated";
-
+    try
+    {
+        displayMenu();
+    }
+    catch (const exception &e)
+    {
+        cerr << "An error occurred: " << e.what() << endl;
+    }
     return 0;
 }
